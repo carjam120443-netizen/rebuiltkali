@@ -7,6 +7,7 @@ set -euo pipefail
 REPO_URL="https://gitlab.com/kalilinux/build-scripts/kali-live.git"
 UPSTREAM_DIR=".upstream/kali-live"
 KALI_POOL="https://http.kali.org/kali/pool/main/l/live-build/"
+KALI_KEYRING_POOL="https://http.kali.org/kali/pool/main/k/kali-archive-keyring/"
 
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "Do not run this script as root. Run it from a normal user account with sudo access."
@@ -35,6 +36,27 @@ fi
 echo "Using Kali live-build package: $LIVE_BUILD_FILE"
 curl -fsSL --retry 5 --retry-delay 2 "${KALI_POOL}${LIVE_BUILD_FILE}" -o "/tmp/$LIVE_BUILD_FILE"
 sudo dpkg -i "/tmp/$LIVE_BUILD_FILE" || sudo apt-get install -f -y
+
+# The Kali live-build configuration explicitly asks debootstrap to use
+# /usr/share/keyrings/kali-archive-keyring.gpg. Ubuntu runners do not ship
+# that Kali keyring, so install the current official keyring before building.
+KEYRING_INDEX=$(curl -fsSL --retry 5 --retry-delay 2 "$KALI_KEYRING_POOL")
+KEYRING_FILE=$(printf '%s\n' "$KEYRING_INDEX" | grep -oE 'kali-archive-keyring_[^" <]+_all\.deb' | sort -V | tail -n1 || true)
+
+if [[ -z "$KEYRING_FILE" ]]; then
+  echo "Could not find the Kali archive keyring package."
+  echo "Kali keyring index: $KALI_KEYRING_POOL"
+  exit 1
+fi
+
+echo "Using Kali archive keyring: $KEYRING_FILE"
+curl -fsSL --retry 5 --retry-delay 2 "${KALI_KEYRING_POOL}${KEYRING_FILE}" -o "/tmp/$KEYRING_FILE"
+sudo dpkg -i "/tmp/$KEYRING_FILE" || sudo apt-get install -f -y
+
+if [[ ! -f /usr/share/keyrings/kali-archive-keyring.gpg ]]; then
+  echo "Kali archive keyring was not installed correctly."
+  exit 1
+fi
 
 live-build --version
 
