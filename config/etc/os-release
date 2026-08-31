@@ -1,0 +1,9 @@
+NAME="RebuiltKali"
+PRETTY_NAME="RebuiltKali"
+ID=rebuiltkali
+ID_LIKE=kali debian
+VERSION_ID="rolling"
+VERSION_CODENAME=rolling
+HOME_URL="https://github.com/carjam120443-netizen/rebuiltkali"
+SUPPORT_URL="https://github.com/carjam120443-netizen/rebuiltkali/issues"
+BUG_REPORT_URL="https://github.com/carjam120443-netizen/rebuiltkali/issues"
