@@ -1,0 +1,68 @@
+name: Build RebuiltKali ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'build.sh'
+      - 'config/**'
+      - '.github/workflows/build-iso.yml'
+  schedule:
+    - cron: '0 3 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout RebuiltKali
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            live-build \
+            cdebootstrap \
+            curl \
+            xorriso \
+            squashfs-tools
+
+      - name: Build RebuiltKali
+        run: |
+          chmod +x ./build.sh
+          sudo ./build.sh
+
+      - name: Find generated ISO
+        id: iso
+        shell: bash
+        run: |
+          ISO=$(find . -type f -name '*.iso' -print -quit)
+          if [ -z "$ISO" ]; then
+            echo "No ISO was generated."
+            exit 1
+          fi
+          echo "iso=$ISO" >> "$GITHUB_OUTPUT"
+          echo "Generated: $ISO"
+
+      - name: Generate SHA256 checksum
+        run: |
+          sha256sum "${{ steps.iso.outputs.iso }}" > "${{ steps.iso.outputs.iso }}.sha256"
+          cat "${{ steps.iso.outputs.iso }}.sha256"
+
+      - name: Upload RebuiltKali ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: rebuiltkali-amd64-iso
+          path: |
+            ${{ steps.iso.outputs.iso }}
+            ${{ steps.iso.outputs.iso }}.sha256
+          if-no-files-found: error
+          retention-days: 14
