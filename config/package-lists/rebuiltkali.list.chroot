@@ -4,7 +4,8 @@ xfce4
 xfce4-goodies
 lightdm
 network-manager
-network-manager-gnome
+network-manager-applet
+nm-connection-editor
 sudo
 curl
 wget
