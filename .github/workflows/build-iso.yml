@@ -38,7 +38,7 @@ jobs:
       - name: Build RebuiltKali
         run: |
           chmod +x ./build.sh
-          sudo ./build.sh
+          ./build.sh
 
       - name: Find generated ISO
         id: iso
