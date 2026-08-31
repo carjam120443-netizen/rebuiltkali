@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# RebuiltKali first-boot-safe customization hook.
+# Keep the image identifiable as a community derivative without replacing
+# Kali's package management or upstream repositories.
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable lightdm >/dev/null 2>&1 || true
+fi
+
+# Make sure the custom OS identity survives package installation.
+if [ -f /etc/os-release ]; then
+    cp /etc/os-release /etc/os-release.rebuiltkali-base
+fi
