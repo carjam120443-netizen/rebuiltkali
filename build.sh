@@ -17,12 +17,38 @@ command -v sudo >/dev/null || { echo "Missing dependency: sudo"; exit 1; }
 
 sudo apt update
 
-# Ubuntu's live-build is too old for current Kali build scripts. Install Kali's
-# current live-build package directly from the official Kali package pool.
-LIVE_BUILD_DEB="/tmp/live-build_1:20250814+kali3_all.deb"
-curl -fsSL "https://http.kali.org/kali/pool/main/l/live-build/live-build_1%3A20250814%2Bkali3_all.deb" -o "$LIVE_BUILD_DEB"
+# Ubuntu's live-build is too old for current Kali build scripts. Kali's current
+# package pool exposes the version needed by the build scripts. Resolve the
+# current .deb from the official package index instead of hard-coding a version.
+LIVE_BUILD_URL="$(python3 - <<'PY'
+import re
+import urllib.request
+
+index = urllib.request.urlopen(
+    "https://http.kali.org/kali/pool/main/l/live-build/",
+    timeout=30,
+).read().decode("utf-8", "replace")
+
+matches = re.findall(r'href="(live-build_[^"]+_all\.deb)"', index)
+if not matches:
+    raise SystemExit("Could not find a Kali live-build package in the package pool.")
+
+# Prefer the current Kali package whose filename contains a Kali revision.
+kali = [m for m in matches if "+kali" in m]
+if not kali:
+    raise SystemExit("Could not find a Kali live-build package with a Kali revision.")
+
+# The package index is ordered newest-first on the current mirror; use the
+# first matching package rather than assuming a particular date/revision.
+print("https://http.kali.org/kali/pool/main/l/live-build/" + kali[0])
+PY
+)"
+
+LIVE_BUILD_DEB="/tmp/live-build.deb"
+echo "Downloading: $LIVE_BUILD_URL"
+curl -fL --retry 3 --retry-delay 2 "$LIVE_BUILD_URL" -o "$LIVE_BUILD_DEB"
 sudo apt install -y "$LIVE_BUILD_DEB"
-sudo apt install -y git cdebootstrap curl xorriso squashfs-tools
+sudo apt install -y git cdebootstrap curl xorriso squashfs-tools python3
 
 live-build --version
 
