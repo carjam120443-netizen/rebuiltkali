@@ -6,6 +6,7 @@ set -euo pipefail
 
 REPO_URL="https://gitlab.com/kalilinux/build-scripts/kali-live.git"
 UPSTREAM_DIR=".upstream/kali-live"
+KALI_POOL="https://http.kali.org/kali/pool/main/l/live-build/"
 
 if [[ "$(id -u)" -eq 0 ]]; then
   echo "Do not run this script as root. Run it from a normal user account with sudo access."
@@ -14,41 +15,26 @@ fi
 
 command -v git >/dev/null || { echo "Missing dependency: git"; exit 1; }
 command -v sudo >/dev/null || { echo "Missing dependency: sudo"; exit 1; }
+command -v curl >/dev/null || { echo "Missing dependency: curl"; exit 1; }
 
 sudo apt update
+sudo apt install -y git curl cdebootstrap xorriso squashfs-tools
 
-# Ubuntu's live-build is too old for current Kali build scripts. Kali's current
-# package pool exposes the version needed by the build scripts. Resolve the
-# current .deb from the official package index instead of hard-coding a version.
-LIVE_BUILD_URL="$(python3 - <<'PY'
-import re
-import urllib.request
+# Ubuntu's live-build is too old for current Kali build scripts. Discover the
+# current Kali live-build package from Kali's official package index instead
+# of hard-coding a versioned filename.
+INDEX=$(curl -fsSL --retry 5 --retry-delay 2 "$KALI_POOL")
+LIVE_BUILD_FILE=$(printf '%s\n' "$INDEX" | grep -oE 'live-build_[^" <]+_all\.deb' | grep -E '\+kali[0-9]+_all\.deb$' | sort -V | tail -n1 || true)
 
-index = urllib.request.urlopen(
-    "https://http.kali.org/kali/pool/main/l/live-build/",
-    timeout=30,
-).read().decode("utf-8", "replace")
+if [[ -z "$LIVE_BUILD_FILE" ]]; then
+  echo "Could not find a Kali live-build package with a Kali revision."
+  echo "Kali package index: $KALI_POOL"
+  exit 1
+fi
 
-matches = re.findall(r'href="(live-build_[^"]+_all\.deb)"', index)
-if not matches:
-    raise SystemExit("Could not find a Kali live-build package in the package pool.")
-
-# Prefer the current Kali package whose filename contains a Kali revision.
-kali = [m for m in matches if "+kali" in m]
-if not kali:
-    raise SystemExit("Could not find a Kali live-build package with a Kali revision.")
-
-# The package index is ordered newest-first on the current mirror; use the
-# first matching package rather than assuming a particular date/revision.
-print("https://http.kali.org/kali/pool/main/l/live-build/" + kali[0])
-PY
-)"
-
-LIVE_BUILD_DEB="/tmp/live-build.deb"
-echo "Downloading: $LIVE_BUILD_URL"
-curl -fL --retry 3 --retry-delay 2 "$LIVE_BUILD_URL" -o "$LIVE_BUILD_DEB"
-sudo apt install -y "$LIVE_BUILD_DEB"
-sudo apt install -y git cdebootstrap curl xorriso squashfs-tools python3
+echo "Using Kali live-build package: $LIVE_BUILD_FILE"
+curl -fsSL --retry 5 --retry-delay 2 "${KALI_POOL}${LIVE_BUILD_FILE}" -o "/tmp/$LIVE_BUILD_FILE"
+sudo dpkg -i "/tmp/$LIVE_BUILD_FILE" || sudo apt-get install -f -y
 
 live-build --version
 
