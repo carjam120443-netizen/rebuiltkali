@@ -1,0 +1,12 @@
+# RebuiltKali base desktop
+kali-desktop-xfce
+xfce4
+xfce4-goodies
+lightdm
+network-manager
+network-manager-gnome
+sudo
+curl
+wget
+git
+fastfetch
