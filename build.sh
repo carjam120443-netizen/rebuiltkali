@@ -16,7 +16,15 @@ command -v git >/dev/null || { echo "Missing dependency: git"; exit 1; }
 command -v sudo >/dev/null || { echo "Missing dependency: sudo"; exit 1; }
 
 sudo apt update
-sudo apt install -y git live-build cdebootstrap curl
+
+# Ubuntu's live-build is too old for current Kali build scripts. Install Kali's
+# current live-build package directly from the official Kali package pool.
+LIVE_BUILD_DEB="/tmp/live-build_1:20250814+kali3_all.deb"
+curl -fsSL "https://http.kali.org/kali/pool/main/l/live-build/live-build_1%3A20250814%2Bkali3_all.deb" -o "$LIVE_BUILD_DEB"
+sudo apt install -y "$LIVE_BUILD_DEB"
+sudo apt install -y git cdebootstrap curl xorriso squashfs-tools
+
+live-build --version
 
 mkdir -p .upstream
 if [[ ! -d "$UPSTREAM_DIR/.git" ]]; then
